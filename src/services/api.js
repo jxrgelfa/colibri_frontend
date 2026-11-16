@@ -42,7 +42,7 @@ async function request(endpoint, options = {}) {
     return data
   } catch (error) {
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('No se pudo conectar con el servidor backend (puerto 8000).')
+      throw new Error('No se pudo conectar con el servidor backend.')
     }
     throw error
   }
