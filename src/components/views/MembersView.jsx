@@ -6,14 +6,17 @@ import {
   Phone,
   Filter,
   Users,
+  Trash2,
 } from 'lucide-react'
 import Badge from '../common/Badge'
+import ConfirmDeleteModal from '../modals/ConfirmDeleteModal'
 import { useGym } from '../../context/useGym'
 
 export default function MembersView() {
-  const { members, openPaymentModal, openNewMemberModal } = useGym()
+  const { members, openPaymentModal, openNewMemberModal, deleteMember } = useGym()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
+  const [memberToDelete, setMemberToDelete] = useState(null)
 
   const filteredMembers = members.filter((m) => {
     const matchesSearch =
@@ -21,14 +24,24 @@ export default function MembersView() {
       m.dni.includes(searchTerm) ||
       m.plan.toLowerCase().includes(searchTerm.toLowerCase())
 
-    if (statusFilter === 'todos') return matchesSearch
-    if (statusFilter === 'al-dia') return matchesSearch && m.status === 'Al Día'
-    if (statusFilter === 'vencido') return matchesSearch && m.status === 'Vencido'
-    if (statusFilter === 'vence-pronto') return matchesSearch && m.status === 'Vence Pronto'
-    return matchesSearch
+    if (!matchesSearch) return false
+
+    if (statusFilter === 'inactivos') {
+      return !m.activo
+    }
+
+    // Por defecto en las listas activas, solo mostramos socios con alta vigente
+    if (!m.activo) return false
+
+    if (statusFilter === 'todos') return true
+    if (statusFilter === 'al-dia') return m.status === 'Al Día'
+    if (statusFilter === 'vencido') return m.status === 'Vencido'
+    if (statusFilter === 'vence-pronto') return m.status === 'Vence Pronto'
+    return true
   })
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, activo) => {
+    if (!activo) return <Badge variant="neutral">Dado de Baja</Badge>
     if (status === 'Al Día') return <Badge variant="success">Al Día</Badge>
     if (status === 'Vence Pronto') return <Badge variant="warning">Vence Pronto</Badge>
     if (status === 'Vencido') return <Badge variant="danger">Vencido</Badge>
@@ -98,6 +111,7 @@ export default function MembersView() {
                 { id: 'al-dia', label: 'Al Día' },
                 { id: 'vence-pronto', label: 'Vence Pronto' },
                 { id: 'vencido', label: 'Vencidos' },
+                { id: 'inactivos', label: 'Inactivos' },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -139,14 +153,18 @@ export default function MembersView() {
                       <tr key={member.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-cyan-50 text-cyan-700 font-bold text-xs flex items-center justify-center border border-cyan-100 shrink-0">
+                            <div className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center border shrink-0 ${
+                              member.activo
+                                ? 'bg-cyan-50 text-cyan-700 border-cyan-100'
+                                : 'bg-slate-100 text-slate-400 border-slate-200'
+                            }`}>
                               {member.name
                                 .split(' ')
                                 .map((n) => n[0])
                                 .join('')}
                             </div>
                             <div>
-                              <div className="font-bold text-slate-900 leading-tight">
+                              <div className={`font-bold leading-tight ${member.activo ? 'text-slate-900' : 'text-slate-500 line-through'}`}>
                                 {member.name}
                               </div>
                               <div className="text-xs text-slate-400 mt-0.5">{member.id}</div>
@@ -161,7 +179,7 @@ export default function MembersView() {
                           </div>
                         </td>
                         <td className="py-3.5 px-4 font-medium text-slate-800">{member.plan}</td>
-                        <td className="py-3.5 px-4">{getStatusBadge(member.status)}</td>
+                        <td className="py-3.5 px-4">{getStatusBadge(member.status, member.activo)}</td>
                         <td className="py-3.5 px-4 text-xs font-semibold text-slate-600">
                           {member.dueDate}
                         </td>
@@ -169,14 +187,32 @@ export default function MembersView() {
                           ${member.amount.toLocaleString('es-AR')}
                         </td>
                         <td className="py-3.5 px-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => openPaymentModal(member)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-900 text-slate-700 hover:text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" />
-                            <span>Cobrar</span>
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {member.activo ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openPaymentModal(member)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-900 text-slate-700 hover:text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                                  title="Cobrar cuota"
+                                >
+                                  <CreditCard className="w-3.5 h-3.5" />
+                                  <span>Cobrar</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setMemberToDelete(member)}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                                  title={`Dar de baja a ${member.name}`}
+                                  aria-label={`Dar de baja a ${member.name}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Dado de baja</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -187,6 +223,20 @@ export default function MembersView() {
           </div>
         </>
       )}
+
+      {/* Modal de Confirmación de Baja */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(memberToDelete)}
+        onClose={() => setMemberToDelete(null)}
+        onConfirm={async () => {
+          if (memberToDelete) {
+            await deleteMember(memberToDelete.rawId || memberToDelete.id)
+          }
+        }}
+        title="Dar de baja alumno"
+        entityName={memberToDelete?.name}
+        message={`¿Estás seguro de dar de baja a ${memberToDelete?.name}? Dejará de figurar en las listas activas pero se conservará su historial de pagos.`}
+      />
     </div>
   )
 }

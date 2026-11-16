@@ -4,8 +4,8 @@ import { useGym } from '../../context/useGym'
 export default function OverdueMembersCard() {
   const { members, openPaymentModal, setCurrentView } = useGym()
 
-  // Filter members with overdue fee
-  const overdueMembers = members.filter((m) => m.status === 'Vencido')
+  // Filter active members with overdue fee
+  const overdueMembers = members.filter((m) => m.activo && m.status === 'Vencido')
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 sm:p-6 flex flex-col justify-between">

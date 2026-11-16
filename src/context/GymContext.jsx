@@ -354,7 +354,7 @@ export function GymProvider({ children }) {
     (p) => p.mes === currentMonth && p.anio === currentYear
   )
   const monthlyRevenue = currentMonthPayments.reduce((sum, p) => sum + p.amount, 0)
-  const overdueCount = members.filter((m) => m.status === 'Vencido').length
+  const overdueCount = members.filter((m) => m.activo && m.status === 'Vencido').length
 
   const stats = {
     activeMembers,
@@ -612,6 +612,45 @@ export function GymProvider({ children }) {
     [refreshData]
   )
 
+  // 9. Delete Member (Soft Delete)
+  const deleteMember = useCallback(
+    async (id) => {
+      const rawId =
+        typeof id === 'string' && id.startsWith('ALU-')
+          ? Number(id.replace('ALU-', ''))
+          : Number(id)
+      await api.alumnos.delete(rawId)
+      await refreshData()
+    },
+    [refreshData]
+  )
+
+  // 10. Delete Trainer (Soft Delete)
+  const deleteTrainer = useCallback(
+    async (id) => {
+      const rawId =
+        typeof id === 'string' && id.startsWith('PROF-')
+          ? Number(id.replace('PROF-', ''))
+          : Number(id)
+      await api.profesores.delete(rawId)
+      await refreshData()
+    },
+    [refreshData]
+  )
+
+  // 11. Delete Class (Soft Delete)
+  const deleteClass = useCallback(
+    async (id) => {
+      const rawId =
+        typeof id === 'string' && id.startsWith('CLS-')
+          ? Number(id.replace('CLS-', ''))
+          : Number(id)
+      await api.clases.delete(rawId)
+      await refreshData()
+    },
+    [refreshData]
+  )
+
   return (
     <GymContext.Provider
       value={{
@@ -669,9 +708,12 @@ export function GymProvider({ children }) {
 
         // Actions
         addMember,
+        deleteMember,
         recordPayment,
         addTrainer,
+        deleteTrainer,
         addClass,
+        deleteClass,
         addSettlement,
         updateSettlementStatus,
         enrollStudent,
