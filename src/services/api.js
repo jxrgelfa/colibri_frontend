@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000/api/v1'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://colibri-backend-lvg5.onrender.com/api/v1').replace(/\/+$/, '')
 
 /**
  * Helper genérico para peticiones HTTP al backend de Colibrí
