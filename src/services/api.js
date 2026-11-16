@@ -60,12 +60,21 @@ export const api = {
     getMe: async () => {
       return request('/auth/me')
     },
+    cambiarClave: async (clave_actual, clave_nueva) => {
+      return request('/auth/cambiar-clave', {
+        method: 'POST',
+        body: JSON.stringify({ clave_actual, clave_nueva }),
+      })
+    },
   },
 
   // Alumnos
   alumnos: {
-    list: async (soloActivos = true) => {
+    list: async (soloActivos = false) => {
       return request(`/alumnos/?solo_activos=${soloActivos}`)
+    },
+    get: async (id) => {
+      return request(`/alumnos/${id}`)
     },
     create: async (alumnoData) => {
       return request('/alumnos/', {
@@ -73,25 +82,101 @@ export const api = {
         body: JSON.stringify(alumnoData),
       })
     },
+    update: async (id, data) => {
+      return request(`/alumnos/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+    delete: async (id) => {
+      return request(`/alumnos/${id}`, {
+        method: 'DELETE',
+      })
+    },
   },
 
   // Profesores
   profesores: {
-    list: async () => {
-      return request('/profesores/')
+    list: async (soloActivos = true) => {
+      return request(`/profesores/?solo_activos=${soloActivos}`)
+    },
+    get: async (id) => {
+      return request(`/profesores/${id}`)
+    },
+    create: async (profesorData) => {
+      return request('/profesores/', {
+        method: 'POST',
+        body: JSON.stringify(profesorData),
+      })
+    },
+    update: async (id, data) => {
+      return request(`/profesores/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+    delete: async (id) => {
+      return request(`/profesores/${id}`, {
+        method: 'DELETE',
+      })
     },
   },
 
   // Clases
   clases: {
-    list: async () => {
-      return request('/clases/')
+    list: async ({ soloActivos = true, profesorId = null } = {}) => {
+      const params = new URLSearchParams()
+      params.append('solo_activos', soloActivos)
+      if (profesorId) params.append('profesor_id', profesorId)
+      return request(`/clases/?${params.toString()}`)
+    },
+    get: async (id) => {
+      return request(`/clases/${id}`)
+    },
+    create: async (claseData) => {
+      return request('/clases/', {
+        method: 'POST',
+        body: JSON.stringify(claseData),
+      })
+    },
+    update: async (id, data) => {
+      return request(`/clases/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+    delete: async (id) => {
+      return request(`/clases/${id}`, {
+        method: 'DELETE',
+      })
+    },
+  },
+
+  // Inscripciones
+  inscripciones: {
+    list: async ({ soloActivas = true, alumnoId = null, claseId = null } = {}) => {
+      const params = new URLSearchParams()
+      params.append('solo_activas', soloActivas)
+      if (alumnoId) params.append('alumno_id', alumnoId)
+      if (claseId) params.append('clase_id', claseId)
+      return request(`/inscripciones/?${params.toString()}`)
+    },
+    create: async (inscripcionData) => {
+      return request('/inscripciones/', {
+        method: 'POST',
+        body: JSON.stringify(inscripcionData),
+      })
+    },
+    delete: async (id) => {
+      return request(`/inscripciones/${id}`, {
+        method: 'DELETE',
+      })
     },
   },
 
   // Pagos
   pagos: {
-    list: async (mes, anio) => {
+    list: async (mes = null, anio = null) => {
       const params = new URLSearchParams()
       if (mes) params.append('mes', mes)
       if (anio) params.append('anio', anio)
@@ -104,12 +189,23 @@ export const api = {
         body: JSON.stringify(pagoData),
       })
     },
+    delete: async (id) => {
+      return request(`/pagos/${id}`, {
+        method: 'DELETE',
+      })
+    },
   },
 
   // Liquidaciones
   liquidaciones: {
-    list: async () => {
-      return request('/liquidaciones/')
+    list: async ({ profesorId = null, mes = null, anio = null, estado = null } = {}) => {
+      const params = new URLSearchParams()
+      if (profesorId) params.append('profesor_id', profesorId)
+      if (mes) params.append('mes', mes)
+      if (anio) params.append('anio', anio)
+      if (estado) params.append('estado', estado)
+      const qs = params.toString() ? `?${params.toString()}` : ''
+      return request(`/liquidaciones/${qs}`)
     },
     preview: async (profesorId, mes, anio) => {
       return request(`/liquidaciones/preview?profesor_id=${profesorId}&mes=${mes}&anio=${anio}`)
@@ -118,6 +214,17 @@ export const api = {
       return request('/liquidaciones/', {
         method: 'POST',
         body: JSON.stringify(data),
+      })
+    },
+    marcarPagada: async (id, data = {}) => {
+      return request(`/liquidaciones/${id}/pagar`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+    delete: async (id) => {
+      return request(`/liquidaciones/${id}`, {
+        method: 'DELETE',
       })
     },
     resumenMensual: async (mes, anio) => {

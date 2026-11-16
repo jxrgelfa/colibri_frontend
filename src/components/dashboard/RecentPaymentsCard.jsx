@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Receipt } from 'lucide-react'
 import { useGym } from '../../context/useGym'
 
 export default function RecentPaymentsCard() {
@@ -28,47 +28,57 @@ export default function RecentPaymentsCard() {
         </div>
 
         {/* Payments table / list */}
-        <div className="overflow-x-auto mt-2">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-[11px] font-bold text-slate-400 uppercase border-b border-slate-100">
-                <th className="py-2.5 px-2">Alumno</th>
-                <th className="py-2.5 px-2">Método</th>
-                <th className="py-2.5 px-2">Fecha</th>
-                <th className="py-2.5 px-2 text-right">Monto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {payments.slice(0, 5).map((payment) => (
-                <tr key={payment.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3 px-2">
-                    <div className="font-semibold text-slate-900 leading-tight">
-                      {payment.memberName}
-                    </div>
-                    <div className="text-xs text-slate-400 mt-0.5">{payment.plan}</div>
-                  </td>
-                  <td className="py-3 px-2">
-                    <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700">
-                      {payment.method}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 text-xs text-slate-500 whitespace-nowrap">
-                    {payment.date}
-                  </td>
-                  <td className="py-3 px-2 text-right">
-                    <span className="font-bold text-slate-900 text-sm">
-                      +${payment.amount.toLocaleString('es-AR')}
-                    </span>
-                  </td>
+        {payments.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-sm space-y-1">
+            <Receipt className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+            <p>No hay cobros registrados en el período aún.</p>
+            <p className="text-xs text-slate-400">
+              Usa la acción rápida "Cobrar cuota" para registrar el primer pago.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto mt-2">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-[11px] font-bold text-slate-400 uppercase border-b border-slate-100">
+                  <th className="py-2.5 px-2">Alumno</th>
+                  <th className="py-2.5 px-2">Método</th>
+                  <th className="py-2.5 px-2">Fecha</th>
+                  <th className="py-2.5 px-2 text-right">Monto</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {payments.slice(0, 5).map((payment) => (
+                  <tr key={payment.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3 px-2">
+                      <div className="font-semibold text-slate-900 leading-tight">
+                        {payment.memberName}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5">{payment.plan}</div>
+                    </td>
+                    <td className="py-3 px-2">
+                      <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700">
+                        {payment.method}
+                      </span>
+                    </td>
+                    <td className="py-3 px-2 text-xs text-slate-500 whitespace-nowrap">
+                      {payment.date}
+                    </td>
+                    <td className="py-3 px-2 text-right">
+                      <span className="font-bold text-slate-900 text-sm">
+                        +${payment.amount.toLocaleString('es-AR')}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-        <span>Actualizado en tiempo real</span>
+        <span>Actualizado con la API en tiempo real</span>
         <button
           type="button"
           onClick={() => setCurrentView('pagos')}

@@ -1,18 +1,27 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { CheckCircle, Clock, Printer } from 'lucide-react'
 import Modal from '../common/Modal'
 import { useGym } from '../../context/useGym'
 
 export default function SettlementDetailModal() {
   const { selectedSettlementForDetail, closeSettlementDetailModal, updateSettlementStatus } = useGym()
+  const [isUpdating, setIsUpdating] = useState(false)
 
   if (!selectedSettlementForDetail) return null
 
   const s = selectedSettlementForDetail
 
-  const handleToggleStatus = () => {
-    const newStatus = s.status === 'Pagado' ? 'Pendiente' : 'Pagado'
-    updateSettlementStatus(s.id, newStatus)
+  const handleToggleStatus = async () => {
+    setIsUpdating(true)
+    try {
+      const newStatus = s.status === 'Pagado' ? 'Pendiente' : 'Pagado'
+      const comprobante = newStatus === 'Pagado' ? `COMP-${Date.now().toString().slice(-6)}` : null
+      await updateSettlementStatus(s.id, newStatus, comprobante)
+    } catch (err) {
+      console.error('Error actualizando estado de liquidación:', err)
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   return (
@@ -46,14 +55,15 @@ export default function SettlementDetailModal() {
 
           <button
             type="button"
+            disabled={isUpdating}
             onClick={handleToggleStatus}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
               s.status === 'Pagado'
                 ? 'bg-amber-100 hover:bg-amber-200 text-amber-800'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
             }`}
           >
-            {s.status === 'Pagado' ? 'Marcar como Pendiente' : 'Marcar como Pagado'}
+            {isUpdating ? 'Actualizando...' : s.status === 'Pagado' ? 'Marcar como Pendiente' : 'Marcar como Pagado'}
           </button>
         </div>
 
@@ -68,16 +78,32 @@ export default function SettlementDetailModal() {
             <span className="font-semibold text-slate-800">{s.period}</span>
           </div>
           <div className="py-2.5 flex justify-between">
-            <span className="text-slate-500">Horas / Clases Dictadas:</span>
-            <span className="font-bold text-slate-800">{s.totalClasses} hs</span>
+            <span className="text-slate-500">Alumnos Abonados:</span>
+            <span className="font-bold text-slate-800">{s.totalClasses} alumnos</span>
           </div>
           <div className="py-2.5 flex justify-between">
-            <span className="text-slate-500">Fecha de Registro:</span>
+            <span className="text-slate-500">Recaudación Bruta:</span>
+            <span className="font-semibold text-slate-700">
+              ${(s.totalRecaudado || 0).toLocaleString('es-AR')}
+            </span>
+          </div>
+          <div className="py-2.5 flex justify-between">
+            <span className="text-slate-500">Retención Colibrí:</span>
+            <span className="font-semibold text-cyan-600">
+              ${(s.totalColibri || 0).toLocaleString('es-AR')}
+            </span>
+          </div>
+          <div className="py-2.5 flex justify-between">
+            <span className="text-slate-500">CBU / Alias:</span>
+            <span className="font-mono text-xs font-bold text-slate-800">{s.cbu_alias}</span>
+          </div>
+          <div className="py-2.5 flex justify-between">
+            <span className="text-slate-500">Fecha de Liquidación:</span>
             <span className="text-slate-700">{s.date}</span>
           </div>
           <div className="py-3 flex justify-between items-center bg-slate-50/80 px-3 rounded-xl mt-2">
-            <span className="text-sm font-bold text-slate-800">Honorarios Netos:</span>
-            <span className="text-xl font-black text-slate-900">
+            <span className="text-sm font-bold text-slate-800">Honorarios Netos a Transferir:</span>
+            <span className="text-xl font-black text-emerald-600">
               ${s.commission.toLocaleString('es-AR')}
             </span>
           </div>

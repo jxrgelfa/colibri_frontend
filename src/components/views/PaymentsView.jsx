@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { CreditCard, Search, CheckCircle2 } from 'lucide-react'
+import { CreditCard, Search, CheckCircle2, Receipt } from 'lucide-react'
 import { useGym } from '../../context/useGym'
 
 export default function PaymentsView() {
@@ -16,6 +16,20 @@ export default function PaymentsView() {
     if (filterMethod === 'todos') return matchesSearch
     return matchesSearch && p.method.toLowerCase().includes(filterMethod.toLowerCase())
   })
+
+  // Calculate most frequent payment method
+  const methodCounts = payments.reduce((acc, p) => {
+    acc[p.method] = (acc[p.method] || 0) + 1
+    return acc
+  }, {})
+  const topMethod = Object.keys(methodCounts).sort(
+    (a, b) => methodCounts[b] - methodCounts[a]
+  )[0] || 'Sin registros'
+
+  const topMethodPct =
+    payments.length > 0 && topMethod !== 'Sin registros'
+      ? Math.round((methodCounts[topMethod] / payments.length) * 100)
+      : 0
 
   return (
     <div className="space-y-6">
@@ -62,7 +76,10 @@ export default function PaymentsView() {
           </span>
           <div className="text-3xl font-black text-slate-900 mt-1">{payments.length}</div>
           <span className="text-xs text-slate-400 mt-1 inline-block">
-            Promedio ticket: ${(stats.monthlyRevenue / Math.max(1, payments.length)).toFixed(0)}
+            Promedio ticket: $
+            {payments.length > 0
+              ? (stats.monthlyRevenue / payments.length).toFixed(0)
+              : '0'}
           </span>
         </div>
 
@@ -70,85 +87,115 @@ export default function PaymentsView() {
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             Canal de Pago Principal
           </span>
-          <div className="text-3xl font-black text-cyan-600 mt-1">Transferencias</div>
-          <span className="text-xs text-slate-400 mt-1 inline-block">52% de las transacciones</span>
+          <div className="text-3xl font-black text-cyan-600 mt-1">{topMethod}</div>
+          <span className="text-xs text-slate-400 mt-1 inline-block">
+            {topMethodPct > 0 ? `${topMethodPct}% de las transacciones` : 'Sin cobros registrados'}
+          </span>
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="search"
-            placeholder="Buscar por alumno o ID de recibo..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-cyan-500 focus:outline-hidden"
-          />
+      {payments.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-12 text-center shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center mx-auto mb-4 text-cyan-600">
+            <Receipt className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">No hay pagos registrados aún</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto mt-1 mb-6">
+            Cuando cobres las cuotas mensuales de los alumnos, aquí quedará registrado el historial completo de ingresos, comprobantes y método de pago.
+          </p>
+          <button
+            type="button"
+            onClick={() => openPaymentModal()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Cobrar Primera Cuota</span>
+          </button>
         </div>
+      ) : (
+        <>
+          {/* Filter bar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Buscar por alumno o ID de recibo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-cyan-500 focus:outline-hidden"
+              />
+            </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-          {['todos', 'efectivo', 'transferencia', 'tarjeta'].map((method) => (
-            <button
-              key={method}
-              onClick={() => setFilterMethod(method)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize whitespace-nowrap cursor-pointer ${
-                filterMethod === method
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {method}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200/80">
-              <tr>
-                <th className="py-3 px-4">Comprobante</th>
-                <th className="py-3 px-4">Alumno</th>
-                <th className="py-3 px-4">Plan / Concepto</th>
-                <th className="py-3 px-4">Método</th>
-                <th className="py-3 px-4">Fecha y Hora</th>
-                <th className="py-3 px-4 text-right">Monto</th>
-                <th className="py-3 px-4 text-center">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-medium text-xs text-slate-500">
-                    {p.id}
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{p.memberName}</td>
-                  <td className="py-3.5 px-4 text-slate-700">{p.plan}</td>
-                  <td className="py-3.5 px-4">
-                    <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
-                      {p.method}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-xs text-slate-500">{p.date}</td>
-                  <td className="py-3.5 px-4 text-right font-black text-emerald-600">
-                    +${p.amount.toLocaleString('es-AR')}
-                  </td>
-                  <td className="py-3.5 px-4 text-center">
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      {p.status}
-                    </span>
-                  </td>
-                </tr>
+            <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+              {['todos', 'efectivo', 'transferencia', 'tarjeta'].map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setFilterMethod(method)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize whitespace-nowrap cursor-pointer ${
+                    filterMethod === method
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {method}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+            {filtered.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 text-sm">
+                No se encontraron pagos con los filtros seleccionados.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200/80">
+                    <tr>
+                      <th className="py-3 px-4">Comprobante</th>
+                      <th className="py-3 px-4">Alumno</th>
+                      <th className="py-3 px-4">Plan / Concepto</th>
+                      <th className="py-3 px-4">Método</th>
+                      <th className="py-3 px-4">Fecha y Hora</th>
+                      <th className="py-3 px-4 text-right">Monto</th>
+                      <th className="py-3 px-4 text-center">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filtered.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-medium text-xs text-slate-500">
+                          {p.id}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900">{p.memberName}</td>
+                        <td className="py-3.5 px-4 text-slate-700">{p.plan}</td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
+                            {p.method}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-xs text-slate-500">{p.date}</td>
+                        <td className="py-3.5 px-4 text-right font-black text-emerald-600">
+                          +${p.amount.toLocaleString('es-AR')}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            {p.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -13,6 +13,7 @@ import NewMemberModal from '../modals/NewMemberModal'
 import NewSettlementModal from '../modals/NewSettlementModal'
 import SettlementDetailModal from '../modals/SettlementDetailModal'
 import NewClassModal from '../modals/NewClassModal'
+import NewTrainerModal from '../modals/NewTrainerModal'
 import ClassStudentsModal from '../modals/ClassStudentsModal'
 import { useGym } from '../../context/useGym'
 
@@ -62,6 +63,7 @@ export default function MainLayout() {
       <NewSettlementModal />
       <SettlementDetailModal />
       <NewClassModal />
+      <NewTrainerModal />
       <ClassStudentsModal />
     </div>
   )

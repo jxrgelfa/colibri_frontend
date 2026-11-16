@@ -1,27 +1,378 @@
-import { createContext, useState, useCallback } from 'react'
-import { initialGymData } from '../data/mockData'
+import { createContext, useState, useCallback, useEffect } from 'react'
+import { api } from '../services/api'
 
 const GymContext = createContext(null)
 
 export function GymProvider({ children }) {
   const [currentView, setCurrentView] = useState('dashboard')
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+
+  // Loading and error states
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [dataError, setDataError] = useState(null)
+
+  // Raw entities from API
+  const [rawAlumnos, setRawAlumnos] = useState([])
+  const [rawProfesores, setRawProfesores] = useState([])
+  const [rawClases, setRawClases] = useState([])
+  const [rawInscripciones, setRawInscripciones] = useState([])
+  const [rawPagos, setRawPagos] = useState([])
+  const [rawLiquidaciones, setRawLiquidaciones] = useState([])
+
+  // Modal states
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
-  const [isNewMemberModalOpen, setIsNewMemberModalOpen] = useState(false)
   const [selectedMemberForPayment, setSelectedMemberForPayment] = useState(null)
 
-  // New settlement & class modal states
-  const [isNewSettlementModalOpen, setIsNewSettlementModalOpen] = useState(false)
-  const [selectedSettlementForDetail, setSelectedSettlementForDetail] = useState(null)
+  const [isNewMemberModalOpen, setIsNewMemberModalOpen] = useState(false)
+  const [isNewTrainerModalOpen, setIsNewTrainerModalOpen] = useState(false)
   const [isNewClassModalOpen, setIsNewClassModalOpen] = useState(false)
+  const [isNewSettlementModalOpen, setIsNewSettlementModalOpen] = useState(false)
+
+  const [selectedSettlementForDetail, setSelectedSettlementForDetail] = useState(null)
   const [selectedClassForStudents, setSelectedClassForStudents] = useState(null)
 
-  const [members, setMembers] = useState(initialGymData.members)
-  const [payments, setPayments] = useState(initialGymData.recentPayments)
-  const [stats, setStats] = useState(initialGymData.stats)
-  const [trainers] = useState(initialGymData.trainers)
-  const [classes, setClasses] = useState(initialGymData.classes)
-  const [settlements, setSettlements] = useState(initialGymData.settlements)
+  // Helper date values initialized safely
+  const [today] = useState(() => new Date())
+  const currentMonth = today.getMonth() + 1
+  const currentYear = today.getFullYear()
+  const dayOfMonth = today.getDate()
+
+  // Fetch all backend data
+  const refreshData = useCallback(async () => {
+    try {
+      const [
+        alumnosRes,
+        profesoresRes,
+        clasesRes,
+        inscripcionesRes,
+        pagosRes,
+        liquidacionesRes,
+      ] = await Promise.all([
+        api.alumnos.list(false).catch((err) => {
+          console.error('Error fetching alumnos:', err)
+          return []
+        }),
+        api.profesores.list(false).catch((err) => {
+          console.error('Error fetching profesores:', err)
+          return []
+        }),
+        api.clases.list({ soloActivos: false }).catch((err) => {
+          console.error('Error fetching clases:', err)
+          return []
+        }),
+        api.inscripciones.list({ soloActivas: false }).catch((err) => {
+          console.error('Error fetching inscripciones:', err)
+          return []
+        }),
+        api.pagos.list().catch((err) => {
+          console.error('Error fetching pagos:', err)
+          return []
+        }),
+        api.liquidaciones.list().catch((err) => {
+          console.error('Error fetching liquidaciones:', err)
+          return []
+        }),
+      ])
+
+      setRawAlumnos(alumnosRes || [])
+      setRawProfesores(profesoresRes || [])
+      setRawClases(clasesRes || [])
+      setRawInscripciones(inscripcionesRes || [])
+      setRawPagos(pagosRes || [])
+      setRawLiquidaciones(liquidacionesRes || [])
+      setDataError(null)
+    } catch (err) {
+      console.error('Error general cargando datos de Colibrí:', err)
+      setDataError(err.message || 'Error al conectar con el servidor')
+    }
+  }, [])
+
+  // Initial load on mount
+  useEffect(() => {
+    let ignore = false
+    async function load() {
+      try {
+        const [
+          alumnosRes,
+          profesoresRes,
+          clasesRes,
+          inscripcionesRes,
+          pagosRes,
+          liquidacionesRes,
+        ] = await Promise.all([
+          api.alumnos.list(false).catch(() => []),
+          api.profesores.list(false).catch(() => []),
+          api.clases.list({ soloActivos: false }).catch(() => []),
+          api.inscripciones.list({ soloActivas: false }).catch(() => []),
+          api.pagos.list().catch(() => []),
+          api.liquidaciones.list().catch(() => []),
+        ])
+
+        if (!ignore) {
+          setRawAlumnos(alumnosRes || [])
+          setRawProfesores(profesoresRes || [])
+          setRawClases(clasesRes || [])
+          setRawInscripciones(inscripcionesRes || [])
+          setRawPagos(pagosRes || [])
+          setRawLiquidaciones(liquidacionesRes || [])
+          setIsLoadingData(false)
+        }
+      } catch (err) {
+        if (!ignore) {
+          setDataError(err.message || 'Error al conectar con el servidor')
+          setIsLoadingData(false)
+        }
+      }
+    }
+    load()
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  // Computed / Mapped entities
+  const clasesMap = rawClases.reduce((acc, c) => {
+    acc[c.id] = c
+    return acc
+  }, {})
+
+  const profesoresMap = rawProfesores.reduce((acc, p) => {
+    acc[p.id] = p
+    return acc
+  }, {})
+
+  // 1. Members
+  const members = rawAlumnos.map((a) => {
+    const fullName = `${a.nombre} ${a.apellido}`.trim()
+    const myInscripciones = rawInscripciones.filter(
+      (i) => i.alumno_id === a.id && i.activo !== false
+    )
+    const myClases = myInscripciones.map((i) => clasesMap[i.clase_id]).filter(Boolean)
+
+    let planDesc = 'Sin disciplina'
+    if (myClases.length > 0) {
+      planDesc = myClases.map((c) => c.nombre).join(', ')
+    }
+    if (a.descuento_familiar) {
+      planDesc += ' (Desc. Familiar)'
+    }
+
+    // Payment status for current month
+    const paidCurrentMonth = rawPagos.some(
+      (p) => p.alumno_id === a.id && p.mes === currentMonth && p.anio === currentYear
+    )
+
+    let status = 'Al Día'
+    if (!paidCurrentMonth) {
+      status = dayOfMonth <= 10 ? 'Vence Pronto' : 'Vencido'
+    }
+
+    // Last payment date
+    const myPagos = rawPagos
+      .filter((p) => p.alumno_id === a.id)
+      .sort((p1, p2) => new Date(p2.fecha_pago) - new Date(p1.fecha_pago))
+
+    const lastPaymentDate = myPagos[0]?.fecha_pago
+      ? new Date(myPagos[0].fecha_pago).toISOString().split('T')[0]
+      : 'Sin pagos'
+
+    const nextDueDate = paidCurrentMonth
+      ? `${currentYear}-${String(currentMonth === 12 ? 1 : currentMonth + 1).padStart(2, '0')}-10`
+      : `${currentYear}-${String(currentMonth).padStart(2, '0')}-10`
+
+    // Calculate base fee amount
+    let feeAmount = 0
+    if (myClases.length > 0) {
+      feeAmount = myClases.reduce((sum, c) => {
+        const base = Number(c.precio_base) || 50000
+        if (a.descuento_familiar) {
+          const pctProf = Number(c.porcentaje_profesor) || 60
+          return sum + Math.round(base * (pctProf / 100))
+        }
+        return sum + base
+      }, 0)
+    } else {
+      feeAmount = a.descuento_familiar ? 30000 : 50000
+    }
+
+    return {
+      id: `ALU-${a.id}`,
+      rawId: a.id,
+      name: fullName,
+      nombre: a.nombre,
+      apellido: a.apellido,
+      dni: a.dni || 'S/DNI',
+      email: a.email || '—',
+      phone: a.telefono || '—',
+      plan: planDesc,
+      status,
+      lastPayment: lastPaymentDate,
+      dueDate: nextDueDate,
+      amount: feeAmount,
+      descuento_familiar: Boolean(a.descuento_familiar),
+      activo: a.activo !== false,
+      inscripciones: myInscripciones,
+      clasesIds: myClases.map((c) => c.id),
+    }
+  })
+
+  // 2. Trainers
+  const trainers = rawProfesores.map((p) => {
+    const fullName = `${p.nombre} ${p.apellido}`.trim()
+    const myClases = rawClases.filter((c) => c.profesor_id === p.id && c.activo !== false)
+    const myClasesIds = myClases.map((c) => c.id)
+
+    const distinctStudents = new Set(
+      rawInscripciones
+        .filter((i) => myClasesIds.includes(i.clase_id) && i.activo !== false)
+        .map((i) => i.alumno_id)
+    )
+
+    return {
+      id: p.id,
+      name: fullName,
+      specialty: p.observaciones || 'Instructor/a Acrobacias',
+      phone: p.telefono || '—',
+      dni: p.dni || '—',
+      email: p.email || '—',
+      cbu_alias: p.cbu_alias || '—',
+      porcentaje_honorarios: p.porcentaje_honorarios || 60,
+      classes: myClases.length,
+      students: distinctStudents.size,
+      activo: p.activo !== false,
+    }
+  })
+
+  // 3. Classes
+  const classes = rawClases.map((c) => {
+    const prof = c.profesor || profesoresMap[c.profesor_id]
+    const profName = prof ? `${prof.nombre} ${prof.apellido}`.trim() : 'Sin asignar'
+    const enrolledCount = rawInscripciones.filter(
+      (i) => i.clase_id === c.id && i.activo !== false
+    ).length
+
+    return {
+      id: `CLS-${c.id}`,
+      rawId: c.id,
+      name: c.nombre,
+      trainer: profName,
+      profesorId: c.profesor_id,
+      schedule: c.dias_horarios || 'Horario a confirmar',
+      room: c.descripcion || 'Salón Principal',
+      capacity: c.cupo_maximo || 20,
+      enrolled: enrolledCount,
+      precio_base: c.precio_base || 50000,
+      porcentaje_profesor: c.porcentaje_profesor || 60,
+      activo: c.activo !== false,
+    }
+  })
+
+  // 4. Payments
+  const payments = rawPagos
+    .map((p) => {
+      const alumno = p.alumno || rawAlumnos.find((a) => a.id === p.alumno_id)
+      const memberName = alumno
+        ? `${alumno.nombre} ${alumno.apellido}`.trim()
+        : `Alumno #${p.alumno_id}`
+
+      let planName = 'Cuota Mensual'
+      if (p.detalles && p.detalles.length > 0) {
+        const clsNames = p.detalles
+          .map((d) => clasesMap[d.clase_id]?.nombre || 'Disciplina')
+          .join(', ')
+        if (clsNames) planName = clsNames
+      } else if (p.observaciones) {
+        planName = p.observaciones
+      }
+
+      const formattedDate = p.fecha_pago
+        ? new Date(p.fecha_pago).toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : 'Reciente'
+
+      return {
+        id: `PAY-${p.id}`,
+        rawId: p.id,
+        alumnoId: p.alumno_id,
+        memberName,
+        plan: planName,
+        amount: Number(p.monto_total) || 0,
+        method: p.metodo_pago || 'Efectivo',
+        date: formattedDate,
+        rawDate: p.fecha_pago,
+        status: 'Completado',
+        mes: p.mes,
+        anio: p.anio,
+        detalles: p.detalles || [],
+      }
+    })
+    .sort((a, b) => new Date(b.rawDate || 0) - new Date(a.rawDate || 0))
+
+  // 5. Settlements
+  const settlements = rawLiquidaciones
+    .map((s) => {
+      const prof = s.profesor || profesoresMap[s.profesor_id]
+      const trainerName = prof
+        ? `${prof.nombre} ${prof.apellido}`.trim()
+        : `Profesor #${s.profesor_id}`
+
+      const periodName = `${String(s.mes).padStart(2, '0')}/${s.anio}`
+      const isPaid = (s.estado || '').toLowerCase() === 'pagada'
+
+      return {
+        id: `LIQ-${s.id}`,
+        rawId: s.id,
+        profesorId: s.profesor_id,
+        trainer: trainerName,
+        cbu_alias: prof?.cbu_alias || 'No registrado',
+        period: periodName,
+        mes: s.mes,
+        anio: s.anio,
+        totalClasses: s.total_alumnos || 0,
+        commission: Number(s.total_liquidado) || 0,
+        totalColibri: Number(s.total_colibri) || 0,
+        totalRecaudado: Number(s.total_recaudado) || 0,
+        status: isPaid ? 'Pagado' : 'Pendiente',
+        date: s.fecha_creacion
+          ? new Date(s.fecha_creacion).toLocaleDateString('es-AR')
+          : 'Reciente',
+        fechaPago: s.fecha_pago,
+        comprobante: s.comprobante || '—',
+        observaciones: s.observaciones || '',
+      }
+    })
+    .sort((a, b) => b.rawId - a.rawId)
+
+  // 6. Stats
+  const activeMembers = members.filter((m) => m.activo).length
+  const currentMonthPayments = payments.filter(
+    (p) => p.mes === currentMonth && p.anio === currentYear
+  )
+  const monthlyRevenue = currentMonthPayments.reduce((sum, p) => sum + p.amount, 0)
+  const overdueCount = members.filter((m) => m.status === 'Vencido').length
+
+  const stats = {
+    activeMembers,
+    monthlyRevenue,
+    overdueCount,
+    activeTrend:
+      activeMembers === 0
+        ? 'Sin socios registrados'
+        : `${activeMembers} socios activos en padrón`,
+    revenueTrend:
+      monthlyRevenue === 0
+        ? 'Sin cobros en el período'
+        : `${currentMonthPayments.length} pagos cobrados este mes`,
+    overdueTrend:
+      overdueCount === 0
+        ? 'Cobranzas 100% al día'
+        : `${overdueCount} alumnos con cuota vencida`,
+  }
 
   // Quick actions: Payments
   const openPaymentModal = useCallback((member = null) => {
@@ -43,21 +394,13 @@ export function GymProvider({ children }) {
     setIsNewMemberModalOpen(false)
   }, [])
 
-  // Quick actions: Settlements
-  const openNewSettlementModal = useCallback(() => {
-    setIsNewSettlementModalOpen(true)
+  // Quick actions: Trainers
+  const openNewTrainerModal = useCallback(() => {
+    setIsNewTrainerModalOpen(true)
   }, [])
 
-  const closeNewSettlementModal = useCallback(() => {
-    setIsNewSettlementModalOpen(false)
-  }, [])
-
-  const openSettlementDetailModal = useCallback((settlement) => {
-    setSelectedSettlementForDetail(settlement)
-  }, [])
-
-  const closeSettlementDetailModal = useCallback(() => {
-    setSelectedSettlementForDetail(null)
+  const closeNewTrainerModal = useCallback(() => {
+    setIsNewTrainerModalOpen(false)
   }, [])
 
   // Quick actions: Classes
@@ -77,125 +420,197 @@ export function GymProvider({ children }) {
     setSelectedClassForStudents(null)
   }, [])
 
-  const recordPayment = useCallback(({ memberName, plan, amount, method }) => {
-    const now = new Date()
-    const paymentRecord = {
-      id: `PAY-${9000 + (Date.now() % 1000)}`,
-      memberName,
-      plan,
-      amount: Number(amount),
-      method: method || 'Efectivo',
-      date: 'Hoy, ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: 'Completado',
-    }
+  // Quick actions: Settlements
+  const openNewSettlementModal = useCallback(() => {
+    setIsNewSettlementModalOpen(true)
+  }, [])
 
-    setPayments((prev) => [paymentRecord, ...prev])
-    setStats((prev) => {
-      return {
-        ...prev,
-        monthlyRevenue: prev.monthlyRevenue + Number(amount),
-        overdueCount: Math.max(0, prev.overdueCount - 1),
+  const closeNewSettlementModal = useCallback(() => {
+    setIsNewSettlementModalOpen(false)
+  }, [])
+
+  const openSettlementDetailModal = useCallback((settlement) => {
+    setSelectedSettlementForDetail(settlement)
+  }, [])
+
+  const closeSettlementDetailModal = useCallback(() => {
+    setSelectedSettlementForDetail(null)
+  }, [])
+
+  // ================= MUTATIONS CON API REAL =================
+
+  // 1. Add Member
+  const addMember = useCallback(
+    async (formData) => {
+      // Split name into nombre & apellido
+      const parts = (formData.name || '').trim().split(' ')
+      const nombre = parts[0] || 'Alumno'
+      const apellido = parts.slice(1).join(' ') || '-'
+
+      const alumnoPayload = {
+        nombre,
+        apellido,
+        dni: formData.dni || null,
+        email: formData.email || null,
+        telefono: formData.phone || null,
+        descuento_familiar: Boolean(formData.descuentoFamiliar),
+        observaciones: formData.observaciones || null,
       }
-    })
 
-    setMembers((prev) =>
-      prev.map((m) => {
-        if (m.name === memberName) {
-          const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          return {
-            ...m,
-            status: 'Al Día',
-            lastPayment: now.toISOString().split('T')[0],
-            dueDate: nextMonth.toISOString().split('T')[0],
-          }
+      const newAlumno = await api.alumnos.create(alumnoPayload)
+
+      // Enroll in selected class if any
+      const classId = formData.classId ? Number(formData.classId) : null
+      if (classId) {
+        try {
+          await api.inscripciones.create({
+            alumno_id: newAlumno.id,
+            clase_id: classId,
+            observaciones: 'Inscripción inicial al dar de alta',
+          })
+        } catch (enrollErr) {
+          console.warn('Error inscribiendo en clase:', enrollErr)
         }
-        return m
+      }
+
+      // Record immediate payment if payNow is selected
+      if (formData.payNow && classId) {
+        try {
+          await api.pagos.create({
+            alumno_id: newAlumno.id,
+            mes: currentMonth,
+            anio: currentYear,
+            metodo_pago: formData.paymentMethod || 'Efectivo',
+            clases_ids: [classId],
+            descuento_porcentaje: 0,
+            observaciones: 'Cobro de primera cuota al dar de alta',
+          })
+        } catch (payErr) {
+          console.warn('Error registrando pago inicial:', payErr)
+        }
+      }
+
+      await refreshData()
+      return newAlumno
+    },
+    [currentMonth, currentYear, refreshData]
+  )
+
+  // 2. Record Payment
+  const recordPayment = useCallback(
+    async ({ alumnoId, mes, anio, method, clasesIds, descuentoPorcentaje, observaciones }) => {
+      const payload = {
+        alumno_id: Number(alumnoId),
+        mes: Number(mes) || currentMonth,
+        anio: Number(anio) || currentYear,
+        metodo_pago: method || 'Efectivo',
+        clases_ids: clasesIds && clasesIds.length > 0 ? clasesIds.map(Number) : null,
+        descuento_porcentaje: Number(descuentoPorcentaje) || 0,
+        observaciones: observaciones || null,
+      }
+
+      const res = await api.pagos.create(payload)
+      await refreshData()
+      return res
+    },
+    [currentMonth, currentYear, refreshData]
+  )
+
+  // 3. Add Trainer
+  const addTrainer = useCallback(
+    async (formData) => {
+      const payload = {
+        nombre: formData.nombre.trim(),
+        apellido: formData.apellido.trim(),
+        dni: formData.dni || null,
+        email: formData.email || null,
+        telefono: formData.telefono || null,
+        cbu_alias: formData.cbu_alias || null,
+        porcentaje_honorarios: Number(formData.porcentaje_honorarios) || 60,
+        observaciones: formData.observaciones || null,
+      }
+
+      const res = await api.profesores.create(payload)
+      await refreshData()
+      return res
+    },
+    [refreshData]
+  )
+
+  // 4. Add Class
+  const addClass = useCallback(
+    async (formData) => {
+      const payload = {
+        nombre: formData.name.trim(),
+        profesor_id: Number(formData.profesorId),
+        descripcion: formData.room || 'Salón Principal',
+        dias_horarios: formData.schedule || 'A convenir',
+        precio_base: Number(formData.precioBase) || 50000,
+        porcentaje_profesor: Number(formData.porcentajeProfesor) || 60,
+        cupo_maximo: Number(formData.capacity) || 20,
+      }
+
+      const res = await api.clases.create(payload)
+      await refreshData()
+      return res
+    },
+    [refreshData]
+  )
+
+  // 5. Add Settlement
+  const addSettlement = useCallback(
+    async ({ profesorId, mes, anio, observaciones }) => {
+      const payload = {
+        profesor_id: Number(profesorId),
+        mes: Number(mes) || currentMonth,
+        anio: Number(anio) || currentYear,
+        observaciones: observaciones || null,
+      }
+
+      const res = await api.liquidaciones.create(payload)
+      await refreshData()
+      return res
+    },
+    [currentMonth, currentYear, refreshData]
+  )
+
+  // 6. Update Settlement Status (Marcar pagada)
+  const updateSettlementStatus = useCallback(
+    async (id, newStatus, comprobante = 'Comprobante emitido') => {
+      const rawId = typeof id === 'string' && id.startsWith('LIQ-') ? Number(id.replace('LIQ-', '')) : Number(id)
+      if (newStatus === 'Pagado') {
+        await api.liquidaciones.marcarPagada(rawId, {
+          comprobante: comprobante || 'Comprobante emitido',
+          observaciones: 'Marcado como pagado desde la plataforma',
+        })
+      }
+      await refreshData()
+    },
+    [refreshData]
+  )
+
+  // 7. Enroll Student in Class
+  const enrollStudent = useCallback(
+    async (alumnoId, claseId, observaciones = '') => {
+      const res = await api.inscripciones.create({
+        alumno_id: Number(alumnoId),
+        clase_id: Number(claseId),
+        observaciones: observaciones || null,
       })
-    )
+      await refreshData()
+      return res
+    },
+    [refreshData]
+  )
 
-    closePaymentModal()
-  }, [closePaymentModal])
-
-  const addMember = useCallback((newMemberData) => {
-    const today = new Date().toISOString().split('T')[0]
-    const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const newId = `ALU-${Math.floor(100 + Math.random() * 900)}`
-
-    const newMember = {
-      id: newId,
-      name: newMemberData.name,
-      dni: newMemberData.dni || 'S/DNI',
-      email: newMemberData.email || '',
-      phone: newMemberData.phone || '',
-      plan: newMemberData.plan,
-      status: 'Al Día',
-      lastPayment: today,
-      dueDate: nextMonth,
-      amount: Number(newMemberData.amount) || 50000,
-    }
-
-    setMembers((prev) => [newMember, ...prev])
-    setStats((prev) => ({
-      ...prev,
-      activeMembers: prev.activeMembers + 1,
-    }))
-
-    if (newMemberData.payNow) {
-      recordPayment({
-        memberName: newMember.name,
-        plan: newMember.plan,
-        amount: newMember.amount,
-        method: newMemberData.paymentMethod || 'Efectivo',
-      })
-    }
-
-    closeNewMemberModal()
-  }, [closeNewMemberModal, recordPayment])
-
-  // Add settlement
-  const addSettlement = useCallback((data) => {
-    const todayStr = new Date().toLocaleDateString('es-AR')
-    const newId = `LIQ-2026-11-${String(settlements.length + 1).padStart(2, '0')}`
-    const newRecord = {
-      id: newId,
-      trainer: data.trainer,
-      period: data.period || 'Noviembre 2026',
-      totalClasses: Number(data.totalClasses) || 40,
-      commission: Number(data.commission) || 160000,
-      status: data.status || 'Pendiente',
-      date: todayStr,
-    }
-
-    setSettlements((prev) => [newRecord, ...prev])
-    closeNewSettlementModal()
-  }, [closeNewSettlementModal, settlements.length])
-
-  // Update settlement status (e.g. mark as Pagado)
-  const updateSettlementStatus = useCallback((id, newStatus) => {
-    setSettlements((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s))
-    )
-    if (selectedSettlementForDetail && selectedSettlementForDetail.id === id) {
-      setSelectedSettlementForDetail((prev) => ({ ...prev, status: newStatus }))
-    }
-  }, [selectedSettlementForDetail])
-
-  // Add class
-  const addClass = useCallback((classData) => {
-    const newId = `CLS-${String(classes.length + 1).padStart(2, '0')}`
-    const newClass = {
-      id: newId,
-      name: classData.name,
-      trainer: classData.trainer,
-      schedule: classData.schedule,
-      room: classData.room || 'Salón Principal',
-      capacity: Number(classData.capacity) || 20,
-      enrolled: 0,
-    }
-
-    setClasses((prev) => [newClass, ...prev])
-    closeNewClassModal()
-  }, [classes.length, closeNewClassModal])
+  // 8. Remove Student Enrollment
+  const removeEnrollment = useCallback(
+    async (inscripcionId) => {
+      await api.inscripciones.delete(inscripcionId)
+      await refreshData()
+    },
+    [refreshData]
+  )
 
   return (
     <GymContext.Provider
@@ -204,36 +619,63 @@ export function GymProvider({ children }) {
         setCurrentView,
         isMobileSidebarOpen,
         setIsMobileSidebarOpen,
+
+        // Data & Status
+        isLoadingData,
+        dataError,
+        refreshData,
+
+        // Entities
+        members,
+        rawAlumnos,
+        trainers,
+        rawProfesores,
+        classes,
+        rawClases,
+        payments,
+        settlements,
+        inscripciones: rawInscripciones,
+        stats,
+
+        // Modals & Handlers
         isPaymentModalOpen,
         openPaymentModal,
         closePaymentModal,
+        selectedMemberForPayment,
+
         isNewMemberModalOpen,
         openNewMemberModal,
         closeNewMemberModal,
-        selectedMemberForPayment,
-        isNewSettlementModalOpen,
-        openNewSettlementModal,
-        closeNewSettlementModal,
-        selectedSettlementForDetail,
-        openSettlementDetailModal,
-        closeSettlementDetailModal,
+
+        isNewTrainerModalOpen,
+        openNewTrainerModal,
+        closeNewTrainerModal,
+
         isNewClassModalOpen,
         openNewClassModal,
         closeNewClassModal,
+
+        isNewSettlementModalOpen,
+        openNewSettlementModal,
+        closeNewSettlementModal,
+
+        selectedSettlementForDetail,
+        openSettlementDetailModal,
+        closeSettlementDetailModal,
+
         selectedClassForStudents,
         openClassStudentsModal,
         closeClassStudentsModal,
-        members,
-        payments,
-        stats,
-        trainers,
-        classes,
-        settlements,
+
+        // Actions
         addMember,
         recordPayment,
+        addTrainer,
+        addClass,
         addSettlement,
         updateSettlementStatus,
-        addClass,
+        enrollStudent,
+        removeEnrollment,
       }}
     >
       {children}
