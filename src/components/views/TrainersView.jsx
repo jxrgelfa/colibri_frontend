@@ -10,12 +10,19 @@ import {
   LayoutGrid,
   Table as TableIcon,
   Search,
+  Pencil,
 } from 'lucide-react'
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal'
 import { useGym } from '../../context/useGym'
 
 export default function TrainersView() {
-  const { trainers, setCurrentView, openNewTrainerModal, deleteTrainer } = useGym()
+  const {
+    trainers,
+    setCurrentView,
+    openNewTrainerModal,
+    deleteTrainer,
+    openEditTrainerModal,
+  } = useGym()
   const [viewMode, setViewMode] = useState('grid') // 'grid' | 'table'
   const [statusFilter, setStatusFilter] = useState('activos') // 'activos' | 'inactivos' | 'todos'
   const [searchTerm, setSearchTerm] = useState('')
@@ -213,6 +220,15 @@ export default function TrainersView() {
                               <span>Ficha</span>
                               <ArrowRight className="w-3 h-3 text-cyan-600" />
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditTrainerModal(trainer)}
+                              className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                              title={`Editar ${trainer.name}`}
+                              aria-label={`Editar ${trainer.name}`}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                             {trainer.activo && (
                               <button
                                 type="button"
@@ -291,6 +307,15 @@ export default function TrainersView() {
                     >
                       <span>Ver Ficha y Liquidación</span>
                       <ArrowRight className="w-3 h-3 text-cyan-600" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditTrainerModal(trainer)}
+                      className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                      title={`Editar ${trainer.name}`}
+                      aria-label={`Editar ${trainer.name}`}
+                    >
+                      <Pencil className="w-4 h-4" />
                     </button>
                     {trainer.activo && (
                       <button

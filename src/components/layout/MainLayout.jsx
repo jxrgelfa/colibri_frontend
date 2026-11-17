@@ -10,10 +10,14 @@ import SettlementsView from '../views/SettlementsView'
 import SettingsView from '../views/SettingsView'
 import PaymentModal from '../modals/PaymentModal'
 import NewMemberModal from '../modals/NewMemberModal'
+import EditMemberModal from '../modals/EditMemberModal'
+import MemberClassesModal from '../modals/MemberClassesModal'
 import NewSettlementModal from '../modals/NewSettlementModal'
 import SettlementDetailModal from '../modals/SettlementDetailModal'
 import NewClassModal from '../modals/NewClassModal'
+import EditClassModal from '../modals/EditClassModal'
 import NewTrainerModal from '../modals/NewTrainerModal'
+import EditTrainerModal from '../modals/EditTrainerModal'
 import ClassStudentsModal from '../modals/ClassStudentsModal'
 import { useGym } from '../../context/useGym'
 
@@ -60,10 +64,14 @@ export default function MainLayout() {
       {/* 3. Modales Globales de Acciones Rápidas y Operaciones */}
       <PaymentModal />
       <NewMemberModal />
+      <EditMemberModal />
+      <MemberClassesModal />
       <NewSettlementModal />
       <SettlementDetailModal />
       <NewClassModal />
+      <EditClassModal />
       <NewTrainerModal />
+      <EditTrainerModal />
       <ClassStudentsModal />
     </div>
   )

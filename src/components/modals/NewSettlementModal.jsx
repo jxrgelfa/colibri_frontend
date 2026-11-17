@@ -33,7 +33,8 @@ export default function NewSettlementModal() {
   const [errorMsg, setErrorMsg] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const effectiveProfesorId = profesorId || (trainers[0] ? String(trainers[0].id) : '')
+  const activeTrainers = trainers.filter((t) => t.activo)
+  const effectiveProfesorId = profesorId || (activeTrainers[0] ? String(activeTrainers[0].id) : '')
 
   // Fetch real-time preview from backend when profesor, mes or anio change
   useEffect(() => {
@@ -109,12 +110,12 @@ export default function NewSettlementModal() {
             Se ha registrado en el backend y guardado el estado de honorarios a transferir.
           </p>
         </div>
-      ) : trainers.length === 0 ? (
+      ) : activeTrainers.length === 0 ? (
         <div className="py-6 text-center space-y-3">
           <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
-          <h4 className="text-base font-bold text-slate-900">No hay profesores cargados</h4>
+          <h4 className="text-base font-bold text-slate-900">No hay profesores activos cargados</h4>
           <p className="text-xs text-slate-500">
-            Para liquidar honorarios, primero debes dar de alta al menos a un profesor.
+            Para liquidar honorarios, primero debes dar de alta o reactivar al menos a un profesor.
           </p>
         </div>
       ) : (
@@ -138,7 +139,7 @@ export default function NewSettlementModal() {
               }}
               className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
             >
-              {trainers.map((t) => (
+              {activeTrainers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name} (Split {t.porcentaje_honorarios}%) — CBU/Alias: {t.cbu_alias}
                 </option>

@@ -24,14 +24,15 @@ export default function NewClassModal() {
   const [errorMsg, setErrorMsg] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const effectiveProfesorId = profesorId || (trainers[0] ? String(trainers[0].id) : '')
-  const selectedTrainer = trainers.find((t) => String(t.id) === effectiveProfesorId)
+  const activeTrainers = trainers.filter((t) => t.activo)
+  const effectiveProfesorId = profesorId || (activeTrainers[0] ? String(activeTrainers[0].id) : '')
+  const selectedTrainer = activeTrainers.find((t) => String(t.id) === effectiveProfesorId)
   const effectivePct = customPct !== null ? customPct : (selectedTrainer?.porcentaje_honorarios || 60)
 
   const handleTrainerChange = (e) => {
     const selectedId = e.target.value
     setProfesorId(selectedId)
-    const found = trainers.find((t) => String(t.id) === selectedId)
+    const found = activeTrainers.find((t) => String(t.id) === selectedId)
     if (found) {
       setCustomPct(found.porcentaje_honorarios || 60)
     }
@@ -92,17 +93,17 @@ export default function NewClassModal() {
             La nueva actividad ya se encuentra disponible en el catálogo de clases de Colibrí.
           </p>
         </div>
-      ) : trainers.length === 0 ? (
+      ) : activeTrainers.length === 0 ? (
         <div className="py-6 text-center space-y-4">
           <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
             <AlertCircle className="w-7 h-7" />
           </div>
           <div className="space-y-1">
             <h4 className="text-base font-bold text-slate-900">
-              No hay profesores registrados
+              No hay profesores activos disponibles
             </h4>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Cada disciplina debe tener un profesor asignado para liquidar sus honorarios. Registra primero al docente.
+              Cada disciplina debe tener un profesor activo asignado para liquidar sus honorarios. Da de alta o reactiva a un docente.
             </p>
           </div>
           <button
@@ -150,7 +151,7 @@ export default function NewClassModal() {
                 required
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
               >
-                {trainers.map((t) => (
+                {activeTrainers.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.porcentaje_honorarios}%)
                   </option>

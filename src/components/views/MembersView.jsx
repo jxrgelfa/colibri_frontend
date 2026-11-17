@@ -7,13 +7,22 @@ import {
   Filter,
   Users,
   Trash2,
+  Pencil,
+  CalendarPlus,
 } from 'lucide-react'
 import Badge from '../common/Badge'
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal'
 import { useGym } from '../../context/useGym'
 
 export default function MembersView() {
-  const { members, openPaymentModal, openNewMemberModal, deleteMember } = useGym()
+  const {
+    members,
+    openPaymentModal,
+    openNewMemberModal,
+    deleteMember,
+    openEditMemberModal,
+    openMemberClassesModal,
+  } = useGym()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
   const [memberToDelete, setMemberToDelete] = useState(null)
@@ -178,13 +187,28 @@ export default function MembersView() {
                             {member.phone}
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 font-medium text-slate-800">{member.plan}</td>
+                        <td className="py-3.5 px-4 font-medium text-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => openMemberClassesModal(member)}
+                            className="text-left hover:text-cyan-600 transition-colors cursor-pointer group flex items-center gap-1.5"
+                            title="Gestionar disciplinas del alumno"
+                          >
+                            <span>{member.plan}</span>
+                            <CalendarPlus className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-cyan-500 transition-opacity" />
+                          </button>
+                        </td>
                         <td className="py-3.5 px-4">{getStatusBadge(member.status, member.activo)}</td>
                         <td className="py-3.5 px-4 text-xs font-semibold text-slate-600">
                           {member.dueDate}
                         </td>
                         <td className="py-3.5 px-4 text-right font-bold text-slate-900">
-                          ${member.amount.toLocaleString('es-AR')}
+                          <div>${member.amount.toLocaleString('es-AR')}</div>
+                          {member.descuento_multimateria && (
+                            <span className="inline-block text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md mt-0.5">
+                              10% Multi-clase
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -192,12 +216,30 @@ export default function MembersView() {
                               <>
                                 <button
                                   type="button"
+                                  onClick={() => openMemberClassesModal(member)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                                  title="Agendar o quitar disciplinas"
+                                >
+                                  <CalendarPlus className="w-3.5 h-3.5 text-cyan-600" />
+                                  <span>Clases</span>
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => openPaymentModal(member)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-900 text-slate-700 hover:text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-900 text-slate-700 hover:text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                                   title="Cobrar cuota"
                                 >
                                   <CreditCard className="w-3.5 h-3.5" />
                                   <span>Cobrar</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditMemberModal(member)}
+                                  className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                                  title={`Editar datos de ${member.name}`}
+                                  aria-label={`Editar datos de ${member.name}`}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   type="button"
@@ -210,7 +252,18 @@ export default function MembersView() {
                                 </button>
                               </>
                             ) : (
-                              <span className="text-xs text-slate-400 italic">Dado de baja</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditMemberModal(member)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                                  title={`Editar o reactivar a ${member.name}`}
+                                >
+                                  <Pencil className="w-3 h-3 text-slate-500" />
+                                  <span>Editar / Alta</span>
+                                </button>
+                                <span className="text-xs text-slate-400 italic">Baja</span>
+                              </div>
                             )}
                           </div>
                         </td>
