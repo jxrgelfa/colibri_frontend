@@ -1,10 +1,17 @@
 import React, { useState } from 'react'
 import { UserCheck, CheckCircle } from 'lucide-react'
 import Modal from '../common/Modal'
+import ActiveClassesPanel from '../common/ActiveClassesPanel'
 import { useGym } from '../../context/useGym'
 
 export default function NewTrainerModal() {
-  const { isNewTrainerModalOpen, closeNewTrainerModal, addTrainer } = useGym()
+  const {
+    isNewTrainerModalOpen,
+    closeNewTrainerModal,
+    addTrainer,
+    classes,
+    trainers,
+  } = useGym()
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -16,6 +23,7 @@ export default function NewTrainerModal() {
     porcentaje_honorarios: 60,
     observaciones: '',
   })
+  const [selectedClassIds, setSelectedClassIds] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
@@ -39,7 +47,7 @@ export default function NewTrainerModal() {
     setErrorMsg('')
 
     try {
-      await addTrainer(formData)
+      await addTrainer(formData, selectedClassIds)
       setIsSuccess(true)
       setTimeout(() => {
         setIsSuccess(false)
@@ -53,6 +61,7 @@ export default function NewTrainerModal() {
           porcentaje_honorarios: 60,
           observaciones: '',
         })
+        setSelectedClassIds([])
         closeNewTrainerModal()
       }, 1200)
     } catch (err) {
@@ -182,21 +191,7 @@ export default function NewTrainerModal() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Especialidad / Disciplina
-              </label>
-              <input
-                type="text"
-                name="observaciones"
-                placeholder="Ej. Telas y Lira"
-                value={formData.observaciones}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                % Honorarios Estándar (Split)
+                % Honorarios Estándar (Split) *
               </label>
               <select
                 name="porcentaje_honorarios"
@@ -210,6 +205,32 @@ export default function NewTrainerModal() {
                 <option value={70}>70% (Especial 70/30)</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Notas / Observaciones (Opcional)
+              </label>
+              <input
+                type="text"
+                name="observaciones"
+                placeholder="Ej. Disponibilidad horaria, antecedentes..."
+                value={formData.observaciones}
+                onChange={handleChange}
+                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          {/* Panel de Clases Activas que va a dirigir */}
+          <div className="pt-2 border-t border-slate-100">
+            <ActiveClassesPanel
+              classes={classes}
+              selectedClassIds={selectedClassIds}
+              onChangeSelected={(ids) => setSelectedClassIds(ids)}
+              trainers={trainers}
+              title="Clases Activas que va a dirigir"
+              subtitle="Selecciona las disciplinas activas del cronograma que estarán a cargo de este nuevo profesor:"
+            />
           </div>
 
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">

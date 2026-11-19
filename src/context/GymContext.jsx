@@ -14,6 +14,7 @@ export function GymProvider({ children }) {
   // Raw entities from API
   const [rawAlumnos, setRawAlumnos] = useState([])
   const [rawProfesores, setRawProfesores] = useState([])
+  const [rawActividades, setRawActividades] = useState([])
   const [rawClases, setRawClases] = useState([])
   const [rawInscripciones, setRawInscripciones] = useState([])
   const [rawPagos, setRawPagos] = useState([])
@@ -38,6 +39,9 @@ export function GymProvider({ children }) {
   const [selectedTrainerForEdit, setSelectedTrainerForEdit] = useState(null)
   const [isEditTrainerModalOpen, setIsEditTrainerModalOpen] = useState(false)
 
+  const [selectedTrainerForClasses, setSelectedTrainerForClasses] = useState(null)
+  const [isTrainerClassesModalOpen, setIsTrainerClassesModalOpen] = useState(false)
+
   const [selectedClassForEdit, setSelectedClassForEdit] = useState(null)
   const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false)
 
@@ -56,6 +60,7 @@ export function GymProvider({ children }) {
       const [
         alumnosRes,
         profesoresRes,
+        actividadesRes,
         clasesRes,
         inscripcionesRes,
         pagosRes,
@@ -67,6 +72,10 @@ export function GymProvider({ children }) {
         }),
         api.profesores.list(false).catch((err) => {
           console.error('Error fetching profesores:', err)
+          return []
+        }),
+        api.actividades.list(false).catch((err) => {
+          console.error('Error fetching actividades:', err)
           return []
         }),
         api.clases.list({ soloActivos: false }).catch((err) => {
@@ -89,6 +98,7 @@ export function GymProvider({ children }) {
 
       setRawAlumnos(alumnosRes || [])
       setRawProfesores(profesoresRes || [])
+      setRawActividades(actividadesRes || [])
       setRawClases(clasesRes || [])
       setRawInscripciones(inscripcionesRes || [])
       setRawPagos(pagosRes || [])
@@ -108,6 +118,7 @@ export function GymProvider({ children }) {
         const [
           alumnosRes,
           profesoresRes,
+          actividadesRes,
           clasesRes,
           inscripcionesRes,
           pagosRes,
@@ -115,6 +126,7 @@ export function GymProvider({ children }) {
         ] = await Promise.all([
           api.alumnos.list(false).catch(() => []),
           api.profesores.list(false).catch(() => []),
+          api.actividades.list(false).catch(() => []),
           api.clases.list({ soloActivos: false }).catch(() => []),
           api.inscripciones.list({ soloActivas: false }).catch(() => []),
           api.pagos.list().catch(() => []),
@@ -124,6 +136,7 @@ export function GymProvider({ children }) {
         if (!ignore) {
           setRawAlumnos(alumnosRes || [])
           setRawProfesores(profesoresRes || [])
+          setRawActividades(actividadesRes || [])
           setRawClases(clasesRes || [])
           setRawInscripciones(inscripcionesRes || [])
           setRawPagos(pagosRes || [])
@@ -144,6 +157,11 @@ export function GymProvider({ children }) {
   }, [])
 
   // Computed / Mapped entities
+  const actividadesMap = rawActividades.reduce((acc, a) => {
+    acc[a.id] = a
+    return acc
+  }, {})
+
   const clasesMap = rawClases.reduce((acc, c) => {
     acc[c.id] = c
     return acc
@@ -153,6 +171,17 @@ export function GymProvider({ children }) {
     acc[p.id] = p
     return acc
   }, {})
+
+  // 0. Actividades
+  const actividades = rawActividades.map((a) => ({
+    id: a.id,
+    nombre: a.nombre,
+    name: a.nombre,
+    descripcion: a.descripcion || '',
+    precio_base_sugerido: Number(a.precio_base_sugerido) || 50000,
+    porcentaje_profesor_default: Number(a.porcentaje_profesor_default) || 60,
+    activo: a.activo !== false,
+  }))
 
   // 1. Members
   const members = rawAlumnos.map((a) => {
@@ -193,7 +222,7 @@ export function GymProvider({ children }) {
       ? `${currentYear}-${String(currentMonth === 12 ? 1 : currentMonth + 1).padStart(2, '0')}-10`
       : `${currentYear}-${String(currentMonth).padStart(2, '0')}-10`
 
-    // Calculate base fee amount & 10% multi-materia discount
+    // Calculate base fee amount & 10% multi-actividad discount
     let feeAmount = 0
     let discountMultiMateria = false
     let baseTotalWithoutDiscount = 0
@@ -209,8 +238,11 @@ export function GymProvider({ children }) {
       }, 0)
       baseTotalWithoutDiscount = sumBase
 
-      // Regla Colibrí: Si cursa 2 o más disciplinas y no es familiar, aplica 10% de descuento al total
-      if (!a.descuento_familiar && myClases.length >= 2) {
+      // Regla Colibrí: Si cursa 2 o más actividades DISTINTAS y no es familiar, aplica 10% de descuento al total
+      const distinctActivities = new Set(
+        myClases.map((c) => c.actividad_id || c.id)
+      )
+      if (!a.descuento_familiar && distinctActivities.size >= 2) {
         discountMultiMateria = true
         feeAmount = Math.round(sumBase * 0.9)
       } else {
@@ -222,7 +254,7 @@ export function GymProvider({ children }) {
     }
 
     if (discountMultiMateria) {
-      planDesc += ' (10% Multi-clase)'
+      planDesc += ' (10% Multi-actividad)'
     }
 
     return {
@@ -263,13 +295,15 @@ export function GymProvider({ children }) {
         .map((i) => i.alumno_id)
     )
 
+    const assignedClassNames = myClases.map((c) => c.nombre).join(', ')
+
     return {
       id: p.id,
       rawId: p.id,
       name: fullName,
       nombre: p.nombre,
       apellido: p.apellido,
-      specialty: p.observaciones || 'Instructor/a Acrobacias',
+      specialty: assignedClassNames || p.observaciones || 'Sin clases asignadas',
       observaciones: p.observaciones || '',
       phone: p.telefono || '—',
       telefono: p.telefono || '',
@@ -278,6 +312,7 @@ export function GymProvider({ children }) {
       cbu_alias: p.cbu_alias || '—',
       porcentaje_honorarios: p.porcentaje_honorarios || 60,
       classes: myClases.length,
+      directedClasses: myClases,
       students: distinctStudents.size,
       activo: p.activo !== false,
     }
@@ -287,6 +322,8 @@ export function GymProvider({ children }) {
   const classes = rawClases.map((c) => {
     const prof = c.profesor || profesoresMap[c.profesor_id]
     const profName = prof ? `${prof.nombre} ${prof.apellido}`.trim() : 'Sin asignar'
+    const act = c.actividad || actividadesMap[c.actividad_id]
+    const actName = act ? act.nombre : 'Sin actividad asignada'
     const enrolledCount = rawInscripciones.filter(
       (i) => i.clase_id === c.id && i.activo !== false
     ).length
@@ -297,6 +334,9 @@ export function GymProvider({ children }) {
       name: c.nombre,
       trainer: profName,
       profesorId: c.profesor_id,
+      actividadId: c.actividad_id || null,
+      actividad: act || null,
+      actividadNombre: actName,
       schedule: c.dias_horarios || 'Horario a confirmar',
       room: c.descripcion || 'Salón Principal',
       capacity: c.cupo_maximo || 20,
@@ -498,6 +538,16 @@ export function GymProvider({ children }) {
     setIsEditTrainerModalOpen(false)
   }, [])
 
+  const openTrainerClassesModal = useCallback((trainer) => {
+    setSelectedTrainerForClasses(trainer)
+    setIsTrainerClassesModalOpen(true)
+  }, [])
+
+  const closeTrainerClassesModal = useCallback(() => {
+    setSelectedTrainerForClasses(null)
+    setIsTrainerClassesModalOpen(false)
+  }, [])
+
   const openEditClassModal = useCallback((cls) => {
     setSelectedClassForEdit(cls)
     setIsEditClassModalOpen(true)
@@ -564,7 +614,10 @@ export function GymProvider({ children }) {
       // Record immediate payment if payNow is selected
       if (formData.payNow && classIdsToEnroll.length > 0) {
         try {
-          const isMulti = !formData.descuentoFamiliar && classIdsToEnroll.length >= 2
+          const distinctActs = new Set(
+            classIdsToEnroll.map((id) => clasesMap[id]?.actividad_id || id)
+          )
+          const isMulti = !formData.descuentoFamiliar && distinctActs.size >= 2
           await api.pagos.create({
             alumno_id: newAlumno.id,
             mes: currentMonth,
@@ -574,7 +627,7 @@ export function GymProvider({ children }) {
             descuento_porcentaje: isMulti ? 10 : 0,
             observaciones:
               'Cobro de primera cuota al dar de alta' +
-              (isMulti ? ' (10% Desc. Multi-clase)' : ''),
+              (isMulti ? ' (10% Desc. Multi-actividad)' : ''),
           })
         } catch (payErr) {
           console.warn('Error registrando pago inicial:', payErr)
@@ -623,7 +676,17 @@ export function GymProvider({ children }) {
 
   // 3. Add Trainer
   const addTrainer = useCallback(
-    async (formData) => {
+    async (formData, selectedClassIds = []) => {
+      const rawSelectedIds = (
+        formData.clases_ids ||
+        selectedClassIds ||
+        []
+      ).map((id) =>
+        typeof id === 'string' && id.startsWith('CLS-')
+          ? Number(id.replace('CLS-', ''))
+          : Number(id)
+      )
+
       const payload = {
         nombre: formData.nombre.trim(),
         apellido: formData.apellido.trim(),
@@ -633,9 +696,11 @@ export function GymProvider({ children }) {
         cbu_alias: formData.cbu_alias || null,
         porcentaje_honorarios: Number(formData.porcentaje_honorarios) || 60,
         observaciones: formData.observaciones || null,
+        clases_ids: rawSelectedIds.length > 0 ? rawSelectedIds : null,
       }
 
       const res = await api.profesores.create(payload)
+
       await refreshData()
       return res
     },
@@ -644,14 +709,72 @@ export function GymProvider({ children }) {
 
   // 3b. Update Trainer
   const updateTrainer = useCallback(
-    async (id, data) => {
+    async (id, data, selectedClassIds = null, reassignments = {}) => {
       const rawId =
         typeof id === 'string' && id.startsWith('PROF-')
           ? Number(id.replace('PROF-', ''))
           : Number(id)
       const res = await api.profesores.update(rawId, data)
+
+      // Si se especificaron clases en el panel, actualizar asignaciones
+      if (selectedClassIds !== null) {
+        for (const classId of selectedClassIds) {
+          try {
+            await api.clases.update(classId, { profesor_id: rawId })
+          } catch (err) {
+            console.error(`Error actualizando clase ${classId}:`, err)
+          }
+        }
+
+        // Si se desmarcó alguna clase previa, reasignarla al profesor indicado
+        if (reassignments && typeof reassignments === 'object') {
+          for (const [classId, newProfId] of Object.entries(reassignments)) {
+            if (newProfId && Number(newProfId) !== rawId) {
+              try {
+                await api.clases.update(Number(classId), { profesor_id: Number(newProfId) })
+              } catch (err) {
+                console.error(`Error reasignando clase ${classId} al profesor ${newProfId}:`, err)
+              }
+            }
+          }
+        }
+      }
+
       await refreshData()
       return res
+    },
+    [refreshData]
+  )
+
+  // 3c. Assign Classes to Trainer
+  const assignClassesToTrainer = useCallback(
+    async (trainerId, selectedClassIds, reassignments = {}) => {
+      const rawId =
+        typeof trainerId === 'string' && trainerId.startsWith('PROF-')
+          ? Number(trainerId.replace('PROF-', ''))
+          : Number(trainerId)
+
+      for (const classId of selectedClassIds) {
+        try {
+          await api.clases.update(classId, { profesor_id: rawId })
+        } catch (err) {
+          console.error(`Error asignando clase ${classId} al profesor ${rawId}:`, err)
+        }
+      }
+
+      if (reassignments && typeof reassignments === 'object') {
+        for (const [classId, newProfId] of Object.entries(reassignments)) {
+          if (newProfId && Number(newProfId) !== rawId) {
+            try {
+              await api.clases.update(Number(classId), { profesor_id: Number(newProfId) })
+            } catch (err) {
+              console.error(`Error reasignando clase ${classId} al profesor ${newProfId}:`, err)
+            }
+          }
+        }
+      }
+
+      await refreshData()
     },
     [refreshData]
   )
@@ -662,6 +785,11 @@ export function GymProvider({ children }) {
       const payload = {
         nombre: formData.name.trim(),
         profesor_id: Number(formData.profesorId),
+        actividad_id: formData.actividadId
+          ? Number(formData.actividadId)
+          : formData.actividad_id
+          ? Number(formData.actividad_id)
+          : null,
         descripcion: formData.room || 'Salón Principal',
         dias_horarios: formData.schedule || 'A convenir',
         precio_base: Number(formData.precioBase) || 50000,
@@ -683,9 +811,41 @@ export function GymProvider({ children }) {
         typeof id === 'string' && id.startsWith('CLS-')
           ? Number(id.replace('CLS-', ''))
           : Number(id)
-      const res = await api.clases.update(rawId, data)
+      const payload = { ...data }
+      if ('actividadId' in payload) {
+        payload.actividad_id = payload.actividadId ? Number(payload.actividadId) : null
+        delete payload.actividadId
+      }
+      const res = await api.clases.update(rawId, payload)
       await refreshData()
       return res
+    },
+    [refreshData]
+  )
+
+  // 4c. Actividades
+  const addActividad = useCallback(
+    async (formData) => {
+      const res = await api.actividades.create(formData)
+      await refreshData()
+      return res
+    },
+    [refreshData]
+  )
+
+  const updateActividad = useCallback(
+    async (id, data) => {
+      const res = await api.actividades.update(id, data)
+      await refreshData()
+      return res
+    },
+    [refreshData]
+  )
+
+  const deleteActividad = useCallback(
+    async (id, soft = true) => {
+      await api.actividades.delete(id, soft)
+      await refreshData()
     },
     [refreshData]
   )
@@ -798,6 +958,8 @@ export function GymProvider({ children }) {
         refreshData,
 
         // Entities
+        actividades,
+        rawActividades,
         members,
         rawAlumnos,
         trainers,
@@ -861,6 +1023,12 @@ export function GymProvider({ children }) {
         openMemberClassesModal,
         closeMemberClassesModal,
 
+        // Trainer Classes Modal
+        selectedTrainerForClasses,
+        isTrainerClassesModalOpen,
+        openTrainerClassesModal,
+        closeTrainerClassesModal,
+
         // Actions
         addMember,
         updateMember,
@@ -868,10 +1036,14 @@ export function GymProvider({ children }) {
         recordPayment,
         addTrainer,
         updateTrainer,
+        assignClassesToTrainer,
         deleteTrainer,
         addClass,
         updateClass,
         deleteClass,
+        addActividad,
+        updateActividad,
+        deleteActividad,
         addSettlement,
         updateSettlementStatus,
         enrollStudent,

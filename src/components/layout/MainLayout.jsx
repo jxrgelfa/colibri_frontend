@@ -18,6 +18,7 @@ import NewClassModal from '../modals/NewClassModal'
 import EditClassModal from '../modals/EditClassModal'
 import NewTrainerModal from '../modals/NewTrainerModal'
 import EditTrainerModal from '../modals/EditTrainerModal'
+import TrainerClassesModal from '../modals/TrainerClassesModal'
 import ClassStudentsModal from '../modals/ClassStudentsModal'
 import { useGym } from '../../context/useGym'
 
@@ -72,6 +73,7 @@ export default function MainLayout() {
       <EditClassModal />
       <NewTrainerModal />
       <EditTrainerModal />
+      <TrainerClassesModal />
       <ClassStudentsModal />
     </div>
   )

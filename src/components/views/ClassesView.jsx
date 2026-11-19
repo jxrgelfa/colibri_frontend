@@ -31,6 +31,7 @@ export default function ClassesView() {
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.trainer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.room.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.actividadNombre && c.actividadNombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
       c.id.toLowerCase().includes(searchTerm.toLowerCase())
 
     if (!matchesSearch) return false
@@ -182,7 +183,14 @@ export default function ClassesView() {
                             <div className={`font-bold leading-tight ${c.activo ? 'text-slate-900' : 'text-slate-500 line-through'}`}>
                               {c.name}
                             </div>
-                            <div className="text-xs text-slate-400 mt-0.5">{c.id}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-xs text-slate-400">{c.id}</span>
+                              {c.actividadNombre && c.actividadNombre !== 'Sin actividad asignada' && (
+                                <span className="text-[10px] font-semibold text-cyan-800 bg-cyan-50 border border-cyan-200 px-1.5 py-0.5 rounded-md">
+                                  {c.actividadNombre}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3.5 px-4">
                             <span className="text-xs font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-md">
@@ -260,9 +268,16 @@ export default function ClassesView() {
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-bold text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-lg">
-                          {c.room}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-lg">
+                            {c.room}
+                          </span>
+                          {c.actividadNombre && c.actividadNombre !== 'Sin actividad asignada' && (
+                            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg">
+                              {c.actividadNombre}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-slate-400 font-medium">{c.id}</span>
                       </div>
 

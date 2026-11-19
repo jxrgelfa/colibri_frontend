@@ -122,12 +122,40 @@ export const api = {
     },
   },
 
+  // Actividades
+  actividades: {
+    list: async (soloActivos = true) => {
+      return request(`/actividades/?solo_activos=${soloActivos}`)
+    },
+    get: async (id) => {
+      return request(`/actividades/${id}`)
+    },
+    create: async (actividadData) => {
+      return request('/actividades/', {
+        method: 'POST',
+        body: JSON.stringify(actividadData),
+      })
+    },
+    update: async (id, data) => {
+      return request(`/actividades/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+    delete: async (id, soft = true) => {
+      return request(`/actividades/${id}?soft=${soft}`, {
+        method: 'DELETE',
+      })
+    },
+  },
+
   // Clases
   clases: {
-    list: async ({ soloActivos = true, profesorId = null } = {}) => {
+    list: async ({ soloActivos = true, profesorId = null, actividadId = null } = {}) => {
       const params = new URLSearchParams()
       params.append('solo_activos', soloActivos)
       if (profesorId) params.append('profesor_id', profesorId)
+      if (actividadId) params.append('actividad_id', actividadId)
       return request(`/clases/?${params.toString()}`)
     },
     get: async (id) => {

@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { Edit3, CheckCircle, AlertCircle } from 'lucide-react'
 import Modal from '../common/Modal'
+import ActiveClassesPanel from '../common/ActiveClassesPanel'
 import { useGym } from '../../context/useGym'
 
-function EditTrainerForm({ trainer, onUpdate, onClose }) {
+function EditTrainerForm({ trainer, classes, trainers, onUpdate, onClose }) {
   const [formData, setFormData] = useState(() => ({
     nombre: trainer.nombre || trainer.name?.split(' ')[0] || '',
     apellido: trainer.apellido || trainer.name?.split(' ').slice(1).join(' ') || '',
@@ -12,9 +13,16 @@ function EditTrainerForm({ trainer, onUpdate, onClose }) {
     telefono: trainer.telefono || (trainer.phone === '—' ? '' : trainer.phone) || '',
     cbu_alias: trainer.cbu_alias === '—' ? '' : trainer.cbu_alias || '',
     porcentaje_honorarios: trainer.porcentaje_honorarios || 60,
-    observaciones: trainer.observaciones || trainer.specialty || '',
+    observaciones: trainer.observaciones || '',
     activo: trainer.activo !== false,
   }))
+
+  const [selectedClassIds, setSelectedClassIds] = useState(() => {
+    return (classes || [])
+      .filter((c) => c.activo !== false && c.profesorId === trainer.id)
+      .map((c) => c.rawId)
+  })
+  const [reassignments, setReassignments] = useState({})
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -39,17 +47,22 @@ function EditTrainerForm({ trainer, onUpdate, onClose }) {
     setErrorMsg('')
 
     try {
-      await onUpdate(trainer.id, {
-        nombre: formData.nombre.trim(),
-        apellido: formData.apellido.trim(),
-        dni: formData.dni.trim() || null,
-        email: formData.email.trim() || null,
-        telefono: formData.telefono.trim() || null,
-        cbu_alias: formData.cbu_alias.trim() || null,
-        porcentaje_honorarios: Number(formData.porcentaje_honorarios) || 60,
-        observaciones: formData.observaciones.trim() || null,
-        activo: Boolean(formData.activo),
-      })
+      await onUpdate(
+        trainer.id,
+        {
+          nombre: formData.nombre.trim(),
+          apellido: formData.apellido.trim(),
+          dni: formData.dni.trim() || null,
+          email: formData.email.trim() || null,
+          telefono: formData.telefono.trim() || null,
+          cbu_alias: formData.cbu_alias.trim() || null,
+          porcentaje_honorarios: Number(formData.porcentaje_honorarios) || 60,
+          observaciones: formData.observaciones.trim() || null,
+          activo: Boolean(formData.activo),
+        },
+        selectedClassIds,
+        reassignments
+      )
 
       setIsSuccess(true)
       setTimeout(() => {
@@ -175,20 +188,7 @@ function EditTrainerForm({ trainer, onUpdate, onClose }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Especialidad / Disciplina
-          </label>
-          <input
-            type="text"
-            name="observaciones"
-            value={formData.observaciones}
-            onChange={handleChange}
-            className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            % Honorarios Estándar (Split)
+            % Honorarios Estándar (Split) *
           </label>
           <select
             name="porcentaje_honorarios"
@@ -202,6 +202,36 @@ function EditTrainerForm({ trainer, onUpdate, onClose }) {
             <option value={70}>70% (Especial 70/30)</option>
           </select>
         </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            Notas / Observaciones (Opcional)
+          </label>
+          <input
+            type="text"
+            name="observaciones"
+            placeholder="Ej. Notas de perfil, disponibilidad..."
+            value={formData.observaciones}
+            onChange={handleChange}
+            className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
+          />
+        </div>
+      </div>
+
+      {/* Panel de Clases Activas que va a dirigir */}
+      <div className="pt-2 border-t border-slate-100">
+        <ActiveClassesPanel
+          classes={classes}
+          selectedClassIds={selectedClassIds}
+          onChangeSelected={(ids, reassigns) => {
+            setSelectedClassIds(ids)
+            if (reassigns) setReassignments(reassigns)
+          }}
+          currentTrainerId={trainer.id}
+          trainers={trainers}
+          title="Clases Activas que va a dirigir"
+          subtitle={`Gestiona qué disciplinas activas de Colibrí dictará ${trainer.name}:`}
+        />
       </div>
 
       {/* Estado de Actividad */}
@@ -253,6 +283,8 @@ export default function EditTrainerModal() {
     isEditTrainerModalOpen,
     closeEditTrainerModal,
     selectedTrainerForEdit,
+    classes,
+    trainers,
     updateTrainer,
   } = useGym()
 
@@ -268,6 +300,8 @@ export default function EditTrainerModal() {
       <EditTrainerForm
         key={selectedTrainerForEdit.id}
         trainer={selectedTrainerForEdit}
+        classes={classes}
+        trainers={trainers}
         onUpdate={updateTrainer}
         onClose={closeEditTrainerModal}
       />

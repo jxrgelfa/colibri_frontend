@@ -130,7 +130,7 @@ function PaymentForm({ member, members, onRecordPayment, onClose }) {
           ? `${finalObservaciones} | ${descText}`
           : descText
       } else if (currentMember?.descuento_multimateria) {
-        const descText = `Beneficio 10% multi-clase aplicado ($${numericAmount.toLocaleString('es-AR')})`
+        const descText = `Beneficio 10% multi-actividad aplicado ($${numericAmount.toLocaleString('es-AR')})`
         finalObservaciones = finalObservaciones
           ? `${finalObservaciones} | ${descText}`
           : descText
@@ -271,8 +271,8 @@ function PaymentForm({ member, members, onRecordPayment, onClose }) {
         <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center gap-2.5 text-xs text-indigo-900">
           <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
           <div>
-            <span className="font-bold">Descuento Multi-disciplina (10%): </span>
-            Aplica automáticamente por cursar {currentMember.clases?.length || 2} disciplinas. Base regular:{' '}
+            <span className="font-bold">Descuento Multi-actividad (10%): </span>
+            Aplica automáticamente por cursar actividades distintas. Base regular:{' '}
             <span className="line-through text-indigo-400">${fullBase.toLocaleString('es-AR')}</span> → Total cuota:{' '}
             <span className="font-bold text-indigo-700">${expectedFee.toLocaleString('es-AR')}</span>.
           </div>

@@ -8,10 +8,15 @@ export default function NewClassModal() {
     isNewClassModalOpen,
     closeNewClassModal,
     trainers,
+    actividades,
+    addActividad,
     addClass,
     openNewTrainerModal,
   } = useGym()
 
+  const [actividadId, setActividadId] = useState('')
+  const [isCreatingActividad, setIsCreatingActividad] = useState(false)
+  const [newActividadNombre, setNewActividadNombre] = useState('')
   const [name, setName] = useState('')
   const [profesorId, setProfesorId] = useState('')
   const [schedule, setSchedule] = useState('Lun y Mié 18:00')
@@ -38,10 +43,33 @@ export default function NewClassModal() {
     }
   }
 
+  const handleActividadChange = (e) => {
+    const val = e.target.value
+    if (val === 'new') {
+      setIsCreatingActividad(true)
+      setActividadId('')
+      return
+    }
+    setIsCreatingActividad(false)
+    setActividadId(val)
+    const act = (actividades || []).find((a) => String(a.id) === String(val))
+    if (act) {
+      if (!name) {
+        setName(act.nombre)
+      }
+      if (act.precio_base_sugerido) {
+        setPrecioBase(act.precio_base_sugerido)
+      }
+      if (act.porcentaje_profesor_default && customPct === null) {
+        setCustomPct(act.porcentaje_profesor_default)
+      }
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) {
-      setErrorMsg('El nombre de la actividad es obligatorio.')
+      setErrorMsg('El nombre de la actividad o turno es obligatorio.')
       return
     }
     if (!effectiveProfesorId) {
@@ -53,9 +81,20 @@ export default function NewClassModal() {
     setErrorMsg('')
 
     try {
+      let finalActividadId = actividadId ? Number(actividadId) : null
+      if (isCreatingActividad && newActividadNombre.trim()) {
+        const createdAct = await addActividad({
+          nombre: newActividadNombre.trim(),
+          precio_base_sugerido: Number(precioBase) || 50000,
+          porcentaje_profesor_default: Number(effectivePct) || 60,
+        })
+        finalActividadId = createdAct.id
+      }
+
       await addClass({
-        name,
+        name: name.trim(),
         profesorId: Number(effectiveProfesorId),
+        actividadId: finalActividadId,
         schedule,
         room,
         capacity: Number(capacity) || 20,
@@ -67,6 +106,9 @@ export default function NewClassModal() {
       setTimeout(() => {
         setIsSuccess(false)
         setName('')
+        setActividadId('')
+        setIsCreatingActividad(false)
+        setNewActividadNombre('')
         closeNewClassModal()
       }, 1200)
     } catch (err) {
@@ -126,14 +168,74 @@ export default function NewClassModal() {
             </div>
           )}
 
+          {/* Actividad / Disciplina General */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800">
+                Disciplina / Actividad General *
+              </label>
+              {!isCreatingActividad && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingActividad(true)
+                    setActividadId('')
+                  }}
+                  className="text-[11px] font-semibold text-cyan-700 hover:text-cyan-800 cursor-pointer"
+                >
+                  + Nueva disciplina
+                </button>
+              )}
+            </div>
+
+            {isCreatingActividad ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Ej: Acrobacia en Telas, Trapecio, Verticales"
+                  value={newActividadNombre}
+                  onChange={(e) => {
+                    setNewActividadNombre(e.target.value)
+                    if (!name) setName(e.target.value)
+                  }}
+                  className="w-full px-3 py-2 text-sm bg-white border border-cyan-400 rounded-xl text-slate-900 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingActividad(false)}
+                  className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  ← Elegir de las actividades existentes
+                </button>
+              </div>
+            ) : (
+              <select
+                value={actividadId}
+                onChange={handleActividadChange}
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
+              >
+                <option value="">Selecciona la actividad (ej: Acrobacia en Telas)</option>
+                {(actividades || []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="text-[11px] text-slate-500">
+              Define la disciplina acrobática. El descuento del 10% se aplica únicamente cuando el alumno cursa disciplinas distintas.
+            </p>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Nombre de la Clase / Disciplina *
+              Nombre de la Clase / Turno *
             </label>
             <input
               type="text"
               required
-              placeholder="Ej: Acrobacia en Telas, Verticales, Trapecio Fijo, Lira"
+              placeholder="Ej: Tela Mañana - Principiantes, Verticales Avanzado"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"

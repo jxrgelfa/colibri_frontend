@@ -40,8 +40,11 @@ export default function NewMemberModal() {
     return sum + base
   }, 0)
 
-  // Regla Colibrí: 2 o más clases reciben 10% de descuento al total
-  const isMultiClass = !formData.descuentoFamiliar && selectedClasses.length >= 2
+  // Regla Colibrí: 2 o más actividades distintas reciben 10% de descuento al total
+  const distinctActivitiesCount = new Set(
+    selectedClasses.map((c) => c.actividadId || c.actividad_id || c.id)
+  ).size
+  const isMultiClass = !formData.descuentoFamiliar && distinctActivitiesCount >= 2
   const feeToPay = isMultiClass ? Math.round(rawSum * 0.9) : rawSum
 
   const handleToggleClass = (classId) => {
@@ -267,7 +270,7 @@ export default function NewMemberModal() {
                 <div>
                   <span className="font-bold">¡Beneficio Multi-disciplina (10%)!</span>
                   <span className="block text-indigo-700 text-[11px]">
-                    10% de descuento aplicado al total por cursar {selectedClasses.length} disciplinas.
+                    10% de descuento aplicado al total por cursar {distinctActivitiesCount} actividades distintas.
                   </span>
                 </div>
               </div>

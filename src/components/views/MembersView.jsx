@@ -206,7 +206,7 @@ export default function MembersView() {
                           <div>${member.amount.toLocaleString('es-AR')}</div>
                           {member.descuento_multimateria && (
                             <span className="inline-block text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-md mt-0.5">
-                              10% Multi-clase
+                              10% Multi-actividad
                             </span>
                           )}
                         </td>

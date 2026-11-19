@@ -3,9 +3,10 @@ import { Edit3, CheckCircle, AlertCircle } from 'lucide-react'
 import Modal from '../common/Modal'
 import { useGym } from '../../context/useGym'
 
-function EditClassForm({ cls, trainers, onUpdate, onClose }) {
+function EditClassForm({ cls, trainers, actividades, onUpdate, onClose }) {
   const [formData, setFormData] = useState(() => ({
     name: cls.name || '',
+    actividadId: String(cls.actividadId || cls.actividad_id || ''),
     profesorId: String(cls.profesorId || ''),
     schedule: cls.schedule || '',
     room: cls.room || '',
@@ -55,6 +56,7 @@ function EditClassForm({ cls, trainers, onUpdate, onClose }) {
       await onUpdate(cls.rawId, {
         nombre: formData.name.trim(),
         profesor_id: Number(formData.profesorId),
+        actividad_id: formData.actividadId ? Number(formData.actividadId) : null,
         descripcion: formData.room.trim() || 'Salón Principal',
         dias_horarios: formData.schedule.trim() || 'A convenir',
         precio_base: Number(formData.precioBase) || 50000,
@@ -98,7 +100,29 @@ function EditClassForm({ cls, trainers, onUpdate, onClose }) {
         <>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Nombre de la Clase / Disciplina *
+              Disciplina / Actividad General
+            </label>
+            <select
+              name="actividadId"
+              value={formData.actividadId}
+              onChange={handleChange}
+              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-hidden"
+            >
+              <option value="">Sin disciplina general vinculada</option>
+              {(actividades || []).map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Permite agrupar turnos y calcular descuentos multi-actividad con precisión.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Nombre de la Clase / Turno *
             </label>
             <input
               type="text"
@@ -261,6 +285,7 @@ export default function EditClassModal() {
     closeEditClassModal,
     selectedClassForEdit,
     trainers,
+    actividades,
     updateClass,
   } = useGym()
 
@@ -277,6 +302,7 @@ export default function EditClassModal() {
         key={selectedClassForEdit.rawId}
         cls={selectedClassForEdit}
         trainers={trainers}
+        actividades={actividades}
         onUpdate={updateClass}
         onClose={closeEditClassModal}
       />

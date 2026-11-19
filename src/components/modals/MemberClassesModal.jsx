@@ -122,15 +122,38 @@ export default function MemberClassesModal() {
             </span>
           </div>
 
-          {myEnrolledClasses.length >= 2 && !member.descuento_familiar && (
-            <div className="mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center gap-2.5 text-xs text-indigo-900">
-              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-              <div>
-                <span className="font-bold">Beneficio 10% Multi-clase Activo: </span>
-                Al cursar {myEnrolledClasses.length} disciplinas, se aplica un 10% de descuento automático en el total mensual.
-              </div>
-            </div>
-          )}
+          {(() => {
+            const distinctActsCount = new Set(
+              myEnrolledClasses.map((item) => item.clase?.actividad_id || item.clase?.actividadId || item.clase?.id)
+            ).size
+            const hasMultiDiscount = distinctActsCount >= 2 && !member.descuento_familiar
+
+            if (hasMultiDiscount) {
+              return (
+                <div className="mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center gap-2.5 text-xs text-indigo-900">
+                  <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <div>
+                    <span className="font-bold">Beneficio 10% Multi-actividad Activo: </span>
+                    Al cursar {distinctActsCount} actividades distintas, se aplica un 10% de descuento automático en el total mensual.
+                  </div>
+                </div>
+              )
+            }
+
+            if (myEnrolledClasses.length >= 2 && !member.descuento_familiar) {
+              return (
+                <div className="mb-3 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs text-slate-700">
+                  <Sparkles className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div>
+                    <span className="font-semibold">Múltiples turnos de la misma actividad: </span>
+                    El alumno cursa {myEnrolledClasses.length} clases de la misma disciplina. El beneficio del 10% aplica al combinar actividades distintas.
+                  </div>
+                </div>
+              )
+            }
+
+            return null
+          })()}
 
           {myEnrolledClasses.length === 0 ? (
             <div className="p-6 bg-slate-50 border border-slate-200/90 rounded-2xl text-center space-y-1">
